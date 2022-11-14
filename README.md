@@ -40,7 +40,7 @@ dotnet run --network=host --rm -it -v /opt/svace:/svace csharp_svace_test0 /bin/
 
 ### Подготовка кода теста
 
-Открыть и отредактировать созданный командой `dotnet new console` тестовый файл `Program.cs`. Удалить всё его содержимое. Вставить вместо него следующий код, содержащий запуск SSL-сервера в режиме взаимодействия по устаревшему и небезопасному протоколу SSL3:
+Открыть и отредактировать созданный командой `dotnet new console` тестовый файл `Program.cs`. Удалить всё его содержимое. Вставить вместо него следующий код, содержащий запуск SSL-сервера в режиме взаимодействия по устаревшему и небезопасному протоколу SSL3. В данном примере анализируется перегрузка функции AuthenticateAsServer, принимающая на вход ровно одно значение версии протокола:
 
 ```C#
 using System;
@@ -84,7 +84,10 @@ namespace Examples.System.Net
             // Authenticate the server but don't require the client to authenticate.
             try
             {
-                sslStream.AuthenticateAsServer(serverCertificate, clientCertificateRequired: false, SslProtocols.Ssl3, checkCertificateRevocation: true);
+                sslStream.AuthenticateAsServer(serverCertificate, 
+                clientCertificateRequired: false, 
+                SslProtocols.Ssl3,  // ВОТ ЗДЕСЬ ВНЕДРЕН КОД, КОТОРЫЙ СЛЕДУЕТ ТРАКТОВАТЬ КАК СЛАБОЕ КОНФИГУРИРОВАНИЕ, ПРИВОДЯЩЕЕ К УЯЗВИМОСТИ
+                checkCertificateRevocation: true);
 
 
                 // Write a message to the client.
@@ -123,3 +126,36 @@ namespace Examples.System.Net
     }
 }
 ```
+
+### Пробная сборка кода теста
+
+Выполнить `dotnet build`. В выводимых сборочной системой сообщениях вы в т.ч. увидите предупреждение компилятора следующего характера:
+
+```bash
+/home/user/svace/Program.cs(42,101): warning CS0618: 'SslProtocols.Ssl3' is obsolete: 'SslProtocols.Ssl3 has been deprecated and is not supported.' [/home/user/svace/svace.csproj]
+```
+
+а также сообщение:
+```
+Build succeeded.
+```
+
+### Сборка теста под контролем svace
+
+Сборка и анализ осуществляются в соответствии с обычными правилами сборки и анализа кода с помощью svace:
+
+```bash
+/PATH/TO/SVACE/bin/svace init
+/PATH/TO/SVACE/bin/svace build dotnet build
+/PATH/TO/SVACE/bin/svace analyze
+```
+
+В выводе svace вы должны увидеть сообщение вида:
+
+```bash
+Analysis results:
+Total warnings: 0
+```
+
+Свидетельствующее о том, что в представленных вами исходных текстах теста svace ошибок не выявил. А должен был бы выявить слабой значением параметра в функции AuthenticateAsServer.
+
