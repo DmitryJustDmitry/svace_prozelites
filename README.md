@@ -280,8 +280,38 @@ $ ll | grep testlibpq.o
 В выводе svace вы должны увидеть сообщение вида:
 
 ```bash
+...
+The analyzed project contains 1 functions.
+...
 Analysis results:
 Total warnings: 0
+...
 ```
 
-Свидетельствующее о том, что в представленных вами исходных текстах теста svace ошибок не выявил. А должен был бы выявить слабой значением параметра в функции AuthenticateAsServer.
+Свидетельствующее о том, что в представленных вами исходных текстах теста svace ошибок не выявил. А должен был бы выявить наличие хардкодного пароля в PQconnectdb.
+
+### Контроль того, что svace действительно проанализировал наш код
+
+Добавим код деления на ноль непосредственно после вызова PQconnectdb:
+
+```c
+  /* Make a connection to the database */
+        conn = PQconnectdb(conninfo);
+        argc = argc / 0;
+```
+
+и повторим процедуры сборки и анализа:
+
+```bash
+/PATH/TO/SVACE/bin/svace build /usr/bin/clang-12 -O0 -I../../../src/interfaces/libpq -I../../../src/include  -D_GNU_SOURCE   -c -o testlibpq.o testlibpq.c
+/PATH/TO/SVACE/bin/svace analyze
+```
+
+Как и ожидалось, в выводе `svace analyze` появилось сообщение об ошибке:
+
+```bash
+Analysis results:
+[DIVISON_BY_ZERO]
+  DIVISION_BY_ZERO: 1
+Total warnings: 1
+```
