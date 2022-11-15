@@ -181,8 +181,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt update
 RUN apt install -y vim git make clang-12 zlib1g-dev libreadline-dev bison flex
-
-RUN git clone --depth=1 --single-branch=REL_14_STABLE https://github.com/postgres/postgres
+RUN git clone --depth=1 --single-branch --branch=REL_14_STABLE https://github.com/postgres/postgres
 
 CMD /bin/bash
 ```
@@ -191,7 +190,7 @@ CMD /bin/bash
 
 ```bash
 dotnet build -t c_svace_test0 -f Dockerfile .
-dotnet run --network=host --rm -it -v /opt/svace:/svace c_svace_test0 /bin/bash
+docker run --network=host -it --rm --name=pnm_test1  -v ~/svace_prozelites:/svace_prozelites ub22_pg
 ```
 
 ### Подготовка кода теста
@@ -228,31 +227,43 @@ main(int argc, char **argv)
 Казалось бы сборка данного теста будет очень простой - небольшой код, минимум заголовочных файлов. Однако именно подключение `libpq-fe.h` тянет за собой длинную цепочку необходимых инклюдов, восстановить которую самому достаточно сложно. 
 
 Соответственно можно пойти двумя путями:
+
 1. Осуществить сборку данного теста просто выполнив `make` в каталоге тестов. Основной минус - для того чтобы сборка выполнилась успешно вам потребуется собрать собственно основной postgres. А это достаточно ресурсоёмкая операция, и конечно же нам хотелось бы её избежать при формировании комплекта тестов. Если же не собрать postgres заранее, в результате выполнения `make` мы увидим лог сборки, оканчивающийся ошибкой компоновщика вида:
 
-```
+```bash
+$ cd postgres 
+$ CC=/usr/bin/clang-12 ./configure #Выполняем configure для postgres в целом, выбирая в качестве компилятора установленный в контейнер при создании образа компилятор clang-12
+$ cd src/test/examples #Переходим в каталог тестов
+$ make
+
 ...
+/usr/bin/ld: cannot find -lpgcommon: No such file or directory
+/usr/bin/ld: cannot find -lpgport: No such file or directory
+/usr/bin/ld: cannot find -lpq: No such file or directory
+/usr/bin/ld: cannot find -lpgcommon: No such file or directory
+/usr/bin/ld: cannot find -lpgport: No such file or directory
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make: *** [../../../src/Makefile.global:795: testlibpq] Error 1
 
 ```
 
+2. Попробовать всё таки самостоятельно сформировать минимальную команду сборки ровно одной единицы трансляции - минимизированного нами файла `testlibpq.c`. Универсального решения данной задачи не существует, однако в данном случае мы поставим эксперимент, который завершится удачно. Обратим внимание на вывод команды `make`, которую мы пытались выполнить ранее - а именно на попытку компиляции именно единицы трансляции `testlibpq.c`. Как видим, именно её компиляция (без компоновки) выполнена успешно:
 
-Открыть и отредактировать созданный командой `dotnet new console` тестовый файл `Program.cs`. Удалить всё его содержимое. Вставить вместо него следующий код, содержащий запуск SSL-сервера в режиме взаимодействия по устаревшему и небезопасному протоколу SSL3. В данном примере анализируется перегрузка функции AuthenticateAsServer, принимающая на вход ровно одно значение версии протокола:
+```bash
+/usr/bin/clang-12 -Wall -Wmissing-prototypes -Wpointer-arith -Wdeclaration-after-statement -Werror=vla -Werror=unguarded-availability-new -Wendif-labels -Wmissing-format-attribute -Wformat-security -fno-strict-aliasing -fwrapv -Wno-unused-command-line-argument -Wno-compound-token-split-by-macro -O2 -I../../../src/interfaces/libpq -I../../../src/include  -D_GNU_SOURCE   -c -o testlibpq.o testlibpq.c
 
-```C
-
+И здесь нет сообщения об ошибке - начинается выполнение следующей команды!
+...
 ```
 
 ### Пробная сборка кода теста
 
-Выполнить `dotnet build`. В выводимых сборочной системой сообщениях вы в т.ч. увидите предупреждение компилятора следующего характера:
+Соответственно мы можем использовать именно данную строку компиляции самостоятельно (удалив из неё все флаги, в точном предназначении которых не разбираемся, а также флаги управления предупреждениями компилятора `-W..`, убрав оптимизации `-O0`, и оставив пути к инклюдам) и проверить, что компиляция выполняется успешно (создается объектный файл testlibpq.o):
 
 ```bash
-/home/user/svace/Program.cs(42,101): warning CS0618: 'SslProtocols.Ssl3' is obsolete: 'SslProtocols.Ssl3 has been deprecated and is not supported.' [/home/user/svace/svace.csproj]
-```
-
-а также сообщение:
-```
-Build succeeded.
+$ /usr/bin/clang-12 -O0 -I../../../src/interfaces/libpq -I../../../src/include  -D_GNU_SOURCE   -c -o testlibpq.o testlibpq.c
+$ ll | grep testlibpq.o
+-rw-r--r-- 1 root root 3010 Nov 15 15:27 testlibpq.o
 ```
 
 ### Сборка теста под контролем svace
@@ -261,7 +272,7 @@ Build succeeded.
 
 ```bash
 /PATH/TO/SVACE/bin/svace init
-/PATH/TO/SVACE/bin/svace build dotnet build
+/PATH/TO/SVACE/bin/svace build /usr/bin/clang-12 -O0 -I../../../src/interfaces/libpq -I../../../src/include  -D_GNU_SOURCE   -c -o testlibpq.o testlibpq.c
 /PATH/TO/SVACE/bin/svace analyze
 ```
 
