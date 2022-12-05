@@ -39,8 +39,8 @@ RUN dotnet new console
 Пример команд сборки образа и запуска контейнера (с доступностью сети хоста для взаимодействия с сервером лицензий svace):
 
 ```bash
-dotnet build -t csharp_svace_test0 -f Dockerfile .
-dotnet run --network=host --rm -it -v /opt/svace:/svace csharp_svace_test0 /bin/bash
+docker build -t csharp_svace_test0 -f Dockerfile .
+docker run --network=host --rm -it -v /opt/svace:/svace csharp_svace_test0 /bin/bash
 ```
 
 ### Подготовка кода теста
@@ -194,7 +194,7 @@ CMD /bin/bash
 Пример команд сборки образа и запуска контейнера (с доступностью сети хоста для взаимодействия с сервером лицензий svace):
 
 ```bash
-dotnet build -t c_svace_test0 -f Dockerfile .
+docker build -t c_svace_test0 -f Dockerfile .
 docker run --network=host -it --rm --name=pnm_test1  -v ~/svace_prozelites:/svace_prozelites ub22_pg
 ```
 
