@@ -152,8 +152,8 @@ Build succeeded.
 Сборка и анализ осуществляются в соответствии с обычными правилами сборки и анализа кода с помощью svace:
 
 ```bash
-/PATH/TO/SVACE/bin/svace warning all true #Принудительно включение всех существующих детекторов svace
 /PATH/TO/SVACE/bin/svace init
+/PATH/TO/SVACE/bin/svace warning all true #Принудительно включение всех существующих детекторов svace
 /PATH/TO/SVACE/bin/svace build dotnet build
 /PATH/TO/SVACE/bin/svace analyze
 ```
@@ -308,8 +308,8 @@ Total warnings: 0
 и повторим процедуры сборки и анализа:
 
 ```bash
-/PATH/TO/SVACE/bin/svace warning all true #Принудительно включение всех существующих детекторов svace
 /PATH/TO/SVACE/bin/svace init
+/PATH/TO/SVACE/bin/svace warning all true #Принудительно включение всех существующих детекторов svace
 /PATH/TO/SVACE/bin/svace build /usr/bin/clang-12 -O0 -I../../../src/interfaces/libpq -I../../../src/include  -D_GNU_SOURCE   -c -o testlibpq.o testlibpq.c
 /PATH/TO/SVACE/bin/svace analyze
 ```
